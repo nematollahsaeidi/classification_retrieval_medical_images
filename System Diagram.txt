@@ -1,0 +1,15 @@
+[Fundus Image Upload] --> [Vision FM + Grad-CAM] --> [Image Embedding + Heatmap]
+                          |
+                          v
+[Segmentation (U-Net)] --> [Retinal Graph Build] --> [GNN Encoder] --> [Graph Embedding]
+                          |
+                          +--> [Late Fusion (MLP Gating)] --> [Fused Embedding]
+                                                         |
+                                                         v
+[Faiss Index Query] <--> [Top-K Neighbors + Sim Breakdown] <--> [Reasoner LLM (Local Llama)]
+                                                         |
+                                                         v
+[Governor Checks] --> [Audit Bundle] --> [JSON Output + PNG Overlay]
+                                                         |
+                                                         v
+[FastAPI /analyze] --> [Response] (+ UI Grid View)

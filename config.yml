@@ -1,0 +1,145 @@
+
+project:
+  name: "Medical_Analysis"
+  seed: 42
+  device: "cuda"
+  dataset_type: "BACH"
+
+paths:
+  base_dataset: "/mnt/miaai/STUDIES/his_img_GNN_classification/datasets/bach"
+  pretrained_vit: "/mnt/miaai/STUDIES/his_img_GNN_classification/pretrain_model_weights/vit_b_16-c867db91.pth"
+
+  models_dir: "/mnt/miaai/Nemat/nuclei_seg/best_models"
+  logs_dir: "/mnt/miaai/Nemat/nuclei_seg/best_models"
+
+  # API / Service
+  static_dir: "static"
+  faiss_index: "/mnt/miaai/Nemat/nuclei_seg/best_models/vit_BACH/faiss_index.bin"
+  gallery_metadata: "/mnt/miaai/Nemat/nuclei_seg/best_models/vit_BACH/gallery_metadata.json"
+  gradcam_output: "./gradcam/BACH"
+
+dataset:
+  name: "BACH"
+  classes: ["benign", "insitu", "invasive", "normal"]
+  num_classes: 4
+  test_size: 0.2
+  image_format: ".tif"
+  uint16_to_uint8: true
+
+feature_model:
+  type: "vit"
+  arch: "vit_b_16"
+  pretrained: false
+  freeze: true
+  embedding_dim: 768
+  patch_size: 16
+  input_size: 224
+
+graph:
+  num_clusters: 8
+  crop_size: 224
+  connectivity_kernel: [3, 3]  # for binary_dilation
+  min_region_area: 50          # optional filtering (not in code, but recommended)
+  use_background_node: false
+
+gnn:
+  type: "GAT"
+  in_dim: 768
+  hidden_dim: 32
+  out_dim: 4
+  heads: 4
+  layers: 2
+  dropout: 0.0
+  concat: true
+
+training:
+  k_folds: 5
+  batch_size: 32
+  num_epochs: 300
+  learning_rate: 0.0001
+  optimizer: "Adam"
+  scheduler:
+    type: "ReduceLROnPlateau"
+    patience: 5
+    factor: 0.5
+  criterion: "CrossEntropyLoss"
+  early_stopping_patience: 20
+
+baseline:
+  num_epochs: 30
+  learning_rate: 0.0001
+  batch_size: 32
+  augmentations:
+    random_horizontal_flip: true
+    random_vertical_flip: true
+    random_rotation: 15
+
+retrieval:
+  index_type: "Flat"  # Flat, IVF, HNSW
+  k_neighbors: 10
+  nlist: 100          # for IVF
+  M: 32              # for HNSW
+  metric: "inner_product"
+  normalize_embeddings: true
+
+metrics:
+  classification:
+    - "accuracy"
+    - "macro_f1"
+    - "balanced_accuracy"
+    - "quadratic_kappa"
+    - "roc_auc_ovr"
+  retrieval:
+    - "nDCG@5"
+    - "Recall@5"
+    - "mAP@10"
+
+transforms:
+  train:
+    resize: [224, 224]
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    augmentations:
+      random_horizontal_flip: true
+      random_vertical_flip: true
+      random_rotation: 15
+
+  val_test:
+    resize: [224, 224]
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+gradcam:
+  enabled: true
+  target_layer: "encoder.layers[-1].ln_1"
+  height: 14
+  width: 14
+  colormap: "JET"
+  alpha: 0.4
+  save_per_class: true
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  cors_origins: ["*"]
+  max_upload_size_mb: 100
+  response_timeout: 120
+
+  endpoints:
+    analyze: "/analyze"
+    neighbors: "/neighbors/{case_id}"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  file_mode: "w"
+  stream: true
+
+env:
+  HF_CACHE: "/mnt/miaai/STUDIES/his_img_GNN_classification/huggingface_cache"
+  TRANSFORMERS_CACHE: "/mnt/miaai/STUDIES/his_img_GNN_classification/huggingface_cache/transformers"
+  HF_HOME: "/mnt/miaai/STUDIES/his_img_GNN_classification/huggingface_cache/huggingface"
+  HF_DATASETS_CACHE: "/mnt/miaai/STUDIES/his_img_GNN_classification/huggingface_cache/datasets"
